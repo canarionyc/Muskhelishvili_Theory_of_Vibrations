@@ -1,4 +1,85 @@
-# %%
+#%% md
+# # Crack Propagation Analysis in Vibrating Structures
+# 
+# ## Mathematical Foundations
+# 
+# This notebook implements numerical solutions for crack propagation analysis in dynamically loaded structures using **Muskhelishvili**'s complex potential theory and fracture mechanics principles.
+# 
+# ### Complex Variable Method for Crack Analysis
+# 
+# Muskhelishvili's approach uses complex potentials $\phi(z)$ and $\psi(z)$ to represent the stress field around a crack, where $z = x + iy$ is the complex coordinate [1]. For a straight crack of length $2a$ under dynamic loading:
+# 
+# $$\phi(z) = \sigma_0 e^{i\omega t} \frac{z}{\sqrt{z^2-a^2}}$$
+# 
+# $$\psi(z) = -\sigma_0 e^{i\omega t} \frac{a^2}{(z^2-a^2)^{3/2}}$$
+# 
+# where:
+# - $\sigma_0$ is the amplitude of the applied load
+# - $\omega$ is the circular frequency of vibration
+# - $t$ is time
+# - $a$ is the half-length of the crack
+# 
+# ### Stress Components from Complex Potentials
+# 
+# The stress components are related to these potentials through [2]:
+# 
+# $$\sigma_x + \sigma_y = 2[\phi'(z) + \overline{\phi'(z)}]$$
+# 
+# $$\sigma_y - \sigma_x + 2i\tau_{xy} = 2[z\overline{\phi''(z)} + \overline{\psi'(z)}]$$
+# 
+# ### Dynamic Stress Intensity Factor
+# 
+# The stress intensity factor (SIF) characterizes the crack-tip stress field intensity and is essential for predicting crack growth [3]. For Mode I loading:
+# 
+# $$K_I = \sigma_0 \sqrt{\pi a} \cos(\omega t)$$
+# 
+# This oscillating factor leads to fatigue effects in vibrating structures.
+# 
+# ### Energy Release Rate
+# 
+# The energy release rate $G$ represents the energy available for crack extension and is related to the SIF by [4]:
+# 
+# $$G = \frac{K_I^2}{E}$$
+# 
+# for plane stress conditions, where $E$ is Young's modulus.
+# 
+# ### Near-Tip Stress Field
+# 
+# The asymptotic stress field near the crack tip is described by Williams' expansion [5]:
+# 
+# $$\sigma_{ij} = \frac{K_I}{\sqrt{2\pi r}} f_{ij}(\theta) + \text{higher order terms}$$
+# 
+# The angular functions for polar coordinates $(r,\theta)$ are:
+# 
+# $$\sigma_r = \frac{K_I}{\sqrt{2\pi r}} \cos\frac{\theta}{2}\left(1-\sin\frac{\theta}{2}\sin\frac{3\theta}{2}\right)$$
+# 
+# $$\sigma_\theta = \frac{K_I}{\sqrt{2\pi r}} \cos\frac{\theta}{2}\left(1+\sin\frac{\theta}{2}\sin\frac{3\theta}{2}\right)$$
+# 
+# $$\tau_{r\theta} = \frac{K_I}{\sqrt{2\pi r}} \sin\frac{\theta}{2}\cos\frac{\theta}{2}\cos\frac{3\theta}{2}$$
+# 
+# ### Frequency Response
+# 
+# In vibrating structures, the crack behavior varies with loading frequency. The maximum stress intensity factor as a function of frequency helps identify critical frequencies where crack growth may accelerate [6].
+# 
+# ## References
+# 
+# [1] Muskhelishvili, N.I. (1953). *Some Basic Problems of the Mathematical Theory of Elasticity*. Noordhoff, Groningen. https://doi.org/10.1007/978-94-017-3034-1
+# 
+# [2] Savruk, M.P. (1981). *Two-Dimensional Problems of Elasticity for Bodies with Cracks*. Naukova Dumka, Kiev. https://www.ams.org/mathscinet-getitem?mr=634269
+# 
+# [3] Anderson, T.L. (2017). *Fracture Mechanics: Fundamentals and Applications*. CRC Press. https://doi.org/10.1201/9781315370293
+# 
+# [4] Rice, J.R. (1968). "A Path Independent Integral and the Approximate Analysis of Strain Concentration by Notches and Cracks". *Journal of Applied Mechanics*, 35(2), 379-386. https://doi.org/10.1115/1.3601206
+# 
+# [5] Williams, M.L. (1957). "On the Stress Distribution at the Base of a Stationary Crack". *Journal of Applied Mechanics*, 24, 109-114. https://doi.org/10.1115/1.4011496
+# 
+# [6] Freund, L.B. (1990). *Dynamic Fracture Mechanics*. Cambridge University Press. https://doi.org/10.1017/CBO9780511546761
+# 
+#%%
+import pint
+from pint import Quantity as Q
+ureg = pint.UnitRegistry()
+#%%
 import numpy as np
 import sympy as sp
 from scipy import integrate
@@ -49,16 +130,20 @@ def dynamic_stress_intensity_factor(a, load_amplitude, omega, t):
 	return K_I
 
 
-# %% Example calculation
-crack_length = 0.01  # 1 cm crack (half-length = 0.005 m)
-load_amplitude = 1e6  # 1 MPa
-freq = 100  # 100 Hz
-omega_val = 2 * np.pi * freq
+#%%
+# from sympy import physics
+crack_length = Q(0.01, 'm')  # 1 cm crack (half-length = 0.005 m)
+load_amplitude = Q(1e6, 'Pa')  # 1 MPa
+freq = Q(100, 'turn/second')  # 100 Hz
+omega = freq.to('radian/second')
 
 # Calculate K_I over one vibration cycle
-time_points = np.linspace(0, 1 / freq, 100)
-K_I_values = [dynamic_stress_intensity_factor(crack_length / 2, load_amplitude,
-                                              omega_val, t) for t in time_points]
+time_points = np.linspace(0, Q(1,'turn') / freq, 100)
+
+K_I_values = load_amplitude * np.sqrt(np.pi * crack_length / 2) * np.cos(omega * time_points)
+
+# K_I_values = [dynamic_stress_intensity_factor(crack_length / 2, load_amplitude,
+#                                               omega, t) for t in time_points]
 
 
 # Energy release rate calculation (G = K_I^2/E for plane stress)
@@ -68,10 +153,11 @@ def energy_release_rate(K_I, E):
 
 
 # Young's modulus for steel
-E_steel = 200e9  # 200 GPa
+E_steel_val = 200e9  # 200 GPa
+E_steel=Q(200, 'GPa')
 G_values = [energy_release_rate(k, E_steel) for k in K_I_values]
-
-#%% plot Dynamic Stress Intensity Factor vs Time
+G_values
+#%%
 import matplotlib.pyplot as plt
 
 # Plot stress intensity factor over time
@@ -83,7 +169,7 @@ plt.ylabel('K_I (Pa·m^(1/2))')
 plt.grid(True)
 plt.show()
 
-#%% Plot energy release rate over time
+#%%
 plt.figure(figsize=(10, 6))
 plt.plot(time_points, G_values, 'r-', linewidth=2)
 plt.title('Energy Release Rate vs Time')
@@ -92,7 +178,7 @@ plt.ylabel('G (J/m²)')
 plt.grid(True)
 plt.show()
 
-#%% Visualize stress field around the crack
+#%%
 def calculate_stress_field(x_range, y_range, crack_length, load_amplitude, omega, t):
     """Calculate stress field around a crack using complex potentials"""
     a = crack_length / 2
@@ -128,14 +214,14 @@ def calculate_stress_field(x_range, y_range, crack_length, load_amplitude, omega
 
     return X, Y, sigma_y
 
-#%% Plot stress field at t=0 (maximum loading)
+#%%
 t = 0
 X, Y, sigma_y = calculate_stress_field(
     x_range=[-0.02, 0.02],
     y_range=[-0.01, 0.01],
     crack_length=crack_length,
     load_amplitude=load_amplitude,
-    omega=omega_val,
+    omega=omega,
     t=t
 )
 
@@ -151,13 +237,13 @@ plt.grid(True)
 plt.plot([-crack_length/2, crack_length/2], [0, 0], 'k-', linewidth=3)  # Draw the crack
 plt.show()
 
-#%% Visualize stress singularity at the crack tip
+#%%
 r_values = np.logspace(-4, -2, 100)  # Distance from crack tip in meters
 theta_values = [0, np.pi/4, np.pi/2, 3*np.pi/4, np.pi]  # Different angles
 
 plt.figure(figsize=(10, 8))
 for theta in theta_values:
-    K_I = dynamic_stress_intensity_factor(crack_length/2, load_amplitude, omega_val, 0)
+    K_I = dynamic_stress_intensity_factor(crack_length/2, load_amplitude, omega, 0)
     sigma_y = K_I / np.sqrt(2*np.pi*r_values) * np.cos(theta/2) * (1 + np.sin(theta/2) * np.sin(3*theta/2))
     plt.loglog(r_values, sigma_y, linewidth=2, label=f'θ = {theta:.2f} rad')
 
@@ -168,10 +254,10 @@ plt.grid(True, which="both", ls="--")
 plt.legend()
 plt.show()
 
-#%% Visualize stress distribution around crack tip in polar coordinates
+#%%
 theta = np.linspace(0, 2*np.pi, 100)
 r = 0.001  # Fixed distance from crack tip (1 mm)
-K_I = dynamic_stress_intensity_factor(crack_length/2, load_amplitude, omega_val, 0)
+K_I = dynamic_stress_intensity_factor(crack_length/2, load_amplitude, omega, 0)
 
 # Calculate stress components using Williams' expansion
 sigma_r = K_I / np.sqrt(2*np.pi*r) * np.cos(theta/2) * (1 - np.sin(theta/2) * np.sin(3*theta/2))
@@ -183,7 +269,7 @@ sigma_r_MPa = sigma_r / 1e6
 sigma_theta_MPa = sigma_theta / 1e6
 tau_r_theta_MPa = tau_r_theta / 1e6
 
-#%% Create polar plot
+#%%
 fig, ax = plt.subplots(figsize=(10, 10), subplot_kw={'projection': 'polar'})
 ax.plot(theta, sigma_r_MPa, label='σ_r')
 ax.plot(theta, sigma_theta_MPa, label='σ_θ')
@@ -196,7 +282,7 @@ ax.legend(loc='upper right')
 ax.grid(True)
 plt.show()
 
-#%% Demonstrate frequency effects on stress intensity factor
+#%%
 def frequency_response_analysis(crack_length, load_amplitude, freq_range, n_points=50):
     """Analyze how frequency affects the maximum stress intensity factor"""
     frequencies = np.linspace(freq_range[0], freq_range[1], n_points)
@@ -212,7 +298,7 @@ def frequency_response_analysis(crack_length, load_amplitude, freq_range, n_poin
 
     return frequencies, np.array(max_K_values)
 
-#%% Plot frequency response
+#%%
 freq_range = (10, 1000)  # Hz
 frequencies, max_K_values = frequency_response_analysis(
     crack_length=crack_length,
@@ -228,7 +314,7 @@ plt.ylabel('Max K_I (Pa·m^(1/2))')
 plt.grid(True)
 plt.show()
 
-#%% Visualize the real and imaginary parts of complex potentials
+#%%
 def visualize_complex_potentials(crack_length, load_amplitude, omega, t):
     """Visualize Muskhelishvili's complex potentials around a crack"""
     a = crack_length / 2
@@ -258,11 +344,11 @@ def visualize_complex_potentials(crack_length, load_amplitude, omega, t):
 
     return X, Y, phi_real, phi_imag
 
-#%%  Plot the real part of phi potential
+#%%
 X, Y, phi_real, phi_imag = visualize_complex_potentials(
     crack_length=crack_length,
     load_amplitude=load_amplitude,
-    omega=omega_val,
+    omega=omega,
     t=0
 )
 

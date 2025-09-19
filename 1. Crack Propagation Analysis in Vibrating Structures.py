@@ -78,6 +78,7 @@
 #%%
 import pint
 from pint import Quantity as Q
+from pint import *
 ureg = pint.UnitRegistry()
 #%%
 import numpy as np
@@ -146,7 +147,7 @@ K_I_values = load_amplitude * np.sqrt(np.pi * crack_length / 2) * np.cos(omega *
 #                                               omega, t) for t in time_points]
 
 
-# Energy release rate calculation (G = K_I^2/E for plane stress)
+#%% Energy release rate calculation (G = K_I^2/E for plane stress)
 def energy_release_rate(K_I, E):
 	"""Calculate energy release rate for mode I"""
 	return K_I ** 2 / E
@@ -155,8 +156,13 @@ def energy_release_rate(K_I, E):
 # Young's modulus for steel
 E_steel_val = 200e9  # 200 GPa
 E_steel=Q(200, 'GPa')
+
 G_values = [energy_release_rate(k, E_steel) for k in K_I_values]
-G_values
+G_values = K_I_values ** 2 / E_steel
+
+G_values.to_
+
+G_values.to('J/m^2')
 #%%
 import matplotlib.pyplot as plt
 

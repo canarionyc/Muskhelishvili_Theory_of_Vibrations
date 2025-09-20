@@ -76,17 +76,27 @@
 # [6] Freund, L.B. (1990). *Dynamic Fracture Mechanics*. Cambridge University Press. https://doi.org/10.1017/CBO9780511546761
 # 
 #%%
-import pint
-from pint import Quantity as Q
-from pint import *
-ureg = pint.UnitRegistry()
+
+# Print the memory address of the ureg object for verification
+if 'ureg' not in globals():
+    import pint
+    from pint import UnitRegistry
+
+    ureg = pint.UnitRegistry()
+    Q = ureg.Quantity
+
+# noinspection PyUnboundLocalVariable
+print(f"ureg object address: {hex(id(ureg))}")
+import matplotlib.pyplot as plt
+ureg.setup_matplotlib(enable=True)
+
 #%%
 import numpy as np
 import sympy as sp
 from scipy import integrate
 
 # Define symbolic variables
-z, t = sp.symbols('z t', complex=True)
+z= sp.symbols('z', complex=True)
 omega = sp.symbols('omega', real=True, positive=True)
 
 
@@ -133,6 +143,7 @@ def dynamic_stress_intensity_factor(a, load_amplitude, omega, t):
 
 #%%
 # from sympy import physics
+# noinspection PyUnboundLocalVariable
 crack_length = Q(0.01, 'm')  # 1 cm crack (half-length = 0.005 m)
 load_amplitude = Q(1e6, 'Pa')  # 1 MPa
 freq = Q(100, 'turn/second')  # 100 Hz
@@ -143,15 +154,12 @@ time_points = np.linspace(0, Q(1,'turn') / freq, 100)
 
 K_I_values = load_amplitude * np.sqrt(np.pi * crack_length / 2) * np.cos(omega * time_points)
 
-# K_I_values = [dynamic_stress_intensity_factor(crack_length / 2, load_amplitude,
-#                                               omega, t) for t in time_points]
-
+print(K_I_values.units)
 
 #%% Energy release rate calculation (G = K_I^2/E for plane stress)
 def energy_release_rate(K_I, E):
 	"""Calculate energy release rate for mode I"""
 	return K_I ** 2 / E
-
 
 # Young's modulus for steel
 E_steel_val = 200e9  # 200 GPa
@@ -160,9 +168,8 @@ E_steel=Q(200, 'GPa')
 G_values = [energy_release_rate(k, E_steel) for k in K_I_values]
 G_values = K_I_values ** 2 / E_steel
 
-G_values.to_
 
-G_values.to('J/m^2')
+G_values.ito('J/m^2')
 #%%
 import matplotlib.pyplot as plt
 
@@ -193,12 +200,12 @@ def calculate_stress_field(x_range, y_range, crack_length, load_amplitude, omega
     x = np.linspace(x_range[0], x_range[1], 200)
     y = np.linspace(y_range[0], y_range[1], 100)
     X, Y = np.meshgrid(x, y)
-    sigma_y = np.zeros_like(X)
+    sigma_y = np.zeros_like(X) * load_amplitude.units
 
     for i in range(len(y)):
         for j in range(len(x)):
             # Skip points on the crack
-            if abs(Y[i, j]) < 1e-10 and abs(X[i, j]) <= a:
+            if abs(Y[i, j]) < 1e-10 * a.units and abs(X[i, j]) <= a:
                 sigma_y[i, j] = np.nan
             else:
                 # Calculate r and theta relative to right crack tip
@@ -221,26 +228,29 @@ def calculate_stress_field(x_range, y_range, crack_length, load_amplitude, omega
     return X, Y, sigma_y
 
 #%%
-t = 0
+t = 0 * ureg.second
 X, Y, sigma_y = calculate_stress_field(
-    x_range=[-0.02, 0.02],
-    y_range=[-0.01, 0.01],
+    x_range=[-0.02, 0.02] * crack_length.units,
+    y_range=[-0.01, 0.01] * crack_length.units,
     crack_length=crack_length,
     load_amplitude=load_amplitude,
     omega=omega,
     t=t
 )
-
+print(sigma_y.units)
+print(sigma_y.shape)
+#%%
+ureg.setup_matplotlib(enable=False)
 plt.figure(figsize=(12, 8))
-levels = np.linspace(0, 3*load_amplitude, 20)
-contour = plt.contourf(X, Y, sigma_y, levels=levels, cmap='jet')
+levels = np.linspace(0*load_amplitude, 3*load_amplitude, 20)
+contour = plt.contourf(X.m, Y.m, sigma_y.m, levels=levels.m, cmap='jet')
 plt.colorbar(label='σ_y (Pa)')
 plt.title(f'Normal Stress σ_y Around Crack at t = {t:.4f}s')
 plt.xlabel('x (m)')
 plt.ylabel('y (m)')
 plt.axis('equal')
 plt.grid(True)
-plt.plot([-crack_length/2, crack_length/2], [0, 0], 'k-', linewidth=3)  # Draw the crack
+plt.plot([-crack_length.m/2, crack_length.m/2], [0, 0], 'k-', linewidth=3)  # Draw the crack
 plt.show()
 
 #%%
